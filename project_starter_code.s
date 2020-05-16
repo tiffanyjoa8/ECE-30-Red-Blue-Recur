@@ -53,26 +53,24 @@
 //                    //
 ////////////////////////
 RedLoop:
-    // x0: base address of the (sub)list
-    // x1: size of the (sub)list
+    // x0: base address of the (sub)list (GIVEN)
+    // x1: size of the (sub)list (GIVEN)
 
     // INSERT YOUR CODE HERE
 
-    //but need increment to start at zero??
-	addi x3, xzr, #1 // x3 as iterator //initialized = 1
-    subi x3, x3, #1
+    //set iterator = 0
+    add x3, xzr, xzr
 
-//following line doesn't work
-//div x7, x1, #2 (divides size of list by 2 and stores in x7) (assume list is even size?)
-//addi x13, x7, #1
+//following line doesn't work (ISSUE #1 - udiv doesn't work)
+//addi x14, xzr, #2
+//udiv x7, x1, x14 (divides size of list by 2 and stores in x7) (assume list is even size?)
 
 addi x7, xzr, #4 // NEED TO FIGURE OUT DIVIDE^^ //hardcode for testing
-addi x13, xzr, #5 //hardcode for testing
 
 //reach end of first half of list
 loop:
     //check loop condition
-	cmp x3, x13 // subs xzr, x3, x13 (compare increment and half arraysize+1)
+	cmp x3, x7 // subs xzr, x3, x13 (compare increment and half arraysize+1)
 	b.eq loopend //(if increment+arraysize the same -> go to loopend)
 	
     //shift x3 left by 3 bits(??) and store shifted address into x4
@@ -83,7 +81,7 @@ loop:
 	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5 
 	
 //for debug
-putint x5
+//putint x5
 
     //parallel code to have x9 "point" to value that is size/2 away
     add x12, x3, x7 //x12 = x3(increment) + half list size (x7)
@@ -92,7 +90,9 @@ putint x5
     ldur x10, [x9, #0] //load value at x9 into x10 (x10 now holds later value)
 
 //for debug
-putint x10
+//putint x10
+//addi x16, xzr, #9 //to separate compared pairs of numbers
+//putint x16
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current element (x5) with element half listsize away (x10)
@@ -110,14 +110,9 @@ ifend:
 	b loop // go through loop again
 
 loopend:
-	putint x2 //need to take out but get infinite loop if I remove?
-	stop // end main??
-
-
-
     //END OF MY INSERTED CODE
 	
-	br lr //was given
+	br lr //was given (goes back to main)
     
 ////////////////////////
 //                    //
