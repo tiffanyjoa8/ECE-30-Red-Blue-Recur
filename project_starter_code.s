@@ -7,6 +7,10 @@
 // Partner1: Tiffany Joa, A14599896
 // Partner2: Jeffrey Dungan, A16116213
 
+//test data file contents:
+//.long
+//arraySize: 8, array: 2, 5, 7, 6, 8, 1, 3, 4
+
 ////////////////////////
 //                    //
 //       main         //
@@ -21,8 +25,9 @@
     lda x0, array
     lda x1, arraySize
     ldur x1, [x1, #0]
-    //bl BLueRecursion    
-    bl RedLoop
+    //bl BLueRecursion
+    //bl RedLoop
+    bl RedRecursion
 
     lda x0, array
     lda x1, arraySize
@@ -53,24 +58,22 @@
 //                    //
 ////////////////////////
 RedLoop:
-    // x0: base address of the (sub)list (GIVEN)
-    // x1: size of the (sub)list (GIVEN)
+    // x0: base address of the (sub)list
+    // x1: size of the (sub)list
 
     // INSERT YOUR CODE HERE
 
     //set iterator = 0
     add x3, xzr, xzr
 
-//following line doesn't work (ISSUE #1 - udiv doesn't work)
-//addi x14, xzr, #2
-//udiv x7, x1, x14 (divides size of list by 2 and stores in x7) (assume list is even size?)
-
-addi x7, xzr, #4 // NEED TO FIGURE OUT DIVIDE^^ //hardcode for testing
+    //divides size of list by 2 and stores in x7 (assume list is even size?)
+    addi x14, xzr, #2
+    udiv x7, x1, x14 //x7 is size of half list
 
 //reach end of first half of list
 loop:
     //check loop condition
-	cmp x3, x7 // subs xzr, x3, x13 (compare increment and half arraysize+1)
+	cmp x3, x7 // subs xzr, x3, x7 (compare increment and half arraysize)
 	b.eq loopend //(if increment+arraysize the same -> go to loopend)
 	
     //shift x3 left by 3 bits(??) and store shifted address into x4
@@ -81,7 +84,9 @@ loop:
 	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5 
 	
 //for debug
-//putint x5
+//addi x16, xzr, #9
+//putint x16 //start of compared numbers (#9)
+//putint x5 //first int compared
 
     //parallel code to have x9 "point" to value that is size/2 away
     add x12, x3, x7 //x12 = x3(increment) + half list size (x7)
@@ -90,9 +95,8 @@ loop:
     ldur x10, [x9, #0] //load value at x9 into x10 (x10 now holds later value)
 
 //for debug
-//putint x10
-//addi x16, xzr, #9 //to separate compared pairs of numbers
-//putint x16
+//putint x10 //second int being compared
+//putint x16 //end of compared pair of numbers (#9)
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current element (x5) with element half listsize away (x10)
@@ -111,9 +115,8 @@ ifend:
 
 loopend:
     //END OF MY INSERTED CODE
-	
-	br lr //was given (goes back to main)
-    
+	br lr //was given (goes back to main or function call??) (ISSUE #1)
+
 ////////////////////////
 //                    //
 //    RedRecursion    //
@@ -124,8 +127,51 @@ RedRecursion:
     // x1: size of the (sub)list
 
     // INSERT YOUR CODE HERE
-	
-	br lr 
+//debug
+//putint x0 //print base address
+//putint x1 //print list size
+
+    addi x3, xzr, #2 //have x3 just store value of 2
+    addi x2, xzr, #1 //have x2 just store value of 1 (min list size)
+    cmp x1, x2 //compare list size and 1
+    b.le endredrecursion //end red recursion if size <=1
+
+    //if size > 1, execute red recursion
+    //(ISSUE #1: should just be bl instead of b.gt)
+    //b.gt RedLoop //(ISSUE #1: after finishing red loop, program just returns to main instead of back here??)
+
+//(ISSUE #1: following code never gets called)
+//debug
+addi x20, xzr, #9
+putint x20
+
+    //keep value of x0 (a)
+    udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
+    b.gt RedRecursion //run for first half of list (should be bl RedRecursion)
+
+    //debug
+    addi x21, xzr, #8
+    putint x21
+
+//draft #1 (ISSUE #2)
+    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
+    //x19 has address of array[updated x1(half list size)]
+    add x0, x0, x19 //updates x0
+
+//debug
+addi x21, xzr, #8
+putint x21
+
+//draft #2 (ISSUE #2)
+    //or is it just this:
+    //add x0, x0, x1 // x0 = x0 + half list size //updates x0
+
+    //keep value of updated x1 (half of size)
+    b.gt RedRecursion //run for second half of list (should be bl RedRecursion)
+
+endredrecursion:
+	//END OF MY INSERTED CODE
+	br lr
     
 ////////////////////////
 //                    //
