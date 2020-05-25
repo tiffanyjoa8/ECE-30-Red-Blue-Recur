@@ -17,18 +17,18 @@
 //                    //
 ////////////////////////
 
-    lda x0, array // x0 = base address of x0
+    lda x0, array // x0 = base address of array
     lda x1, arraySize // x1 = address of arraysize
-	ldur x1, [x1, #0] // load value of arraysize into x1
-    bl printList //print init (given) list)
+	ldur x1, [x1, #0] // load value at address of arraysize into x1
+    bl printList //print init (given) list
     
     lda x0, array
     lda x1, arraySize
     ldur x1, [x1, #0]
     //bl BLueRecursion <- THE ONLY THING THAT SHOULD BE CALLED IN FINAL CODE
     //bl RedLoop
-    //bl RedRecursion
-    bl BLueLoop
+    bl RedRecursion
+    //bl BLueLoop
 
     lda x0, array
     lda x1, arraySize
@@ -67,7 +67,7 @@ RedLoop: // tested and it works :)
     //set iterator = 0
     mov x3, xzr
 
-    //divides size of list by 2 and stores in x7 (assume list is even size?)
+    //divides size of list by 2 and stores in x7
     addi x14, xzr, #2
     udiv x7, x1, x14 //x7 is size of half list
 
@@ -98,7 +98,7 @@ smolredloop:
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current (earlier) element (x5) with (later) element half listsize away (x10)
-	b.lt repeatredsmol //if earlier < later, go to repeatredsmol
+	b.le repeatredsmol //if earlier <= later, go to repeatredsmol
     
     //execute following if need to swap elements
     add x11, x5, xzr //save earlier (bigger) value into temp register
@@ -130,86 +130,55 @@ RedRecursion: //still broken :(
 //putint x0 //print base address
 //putint x1 //print list size
 
-//SETUP (saves fp, return address, x0, x1)
-subi sp, sp, #32 //allocate stack frame
-stur fp, [sp, #0] // save old frame pointer
-addi fp, sp, #24 //set new frame pointer
-stur lr, [fp, #-16] //save the return address
-stur x0, [fp, #0] //save argument x0 (base address of list)
-stur x1, [fp, #-24] //save argument x1 (size of list)
+//CHECK recursion condition
+    cmpi x1, #1 //test x1 < 1
+    b.le label1 //if x1 <= 1 (base case), go to label1
+
+    //SETUP (saves fp, return address, x0, x1)
+    //stack frame = (fp->) x0 / x1 / lr / fp (<-sp)
+    subi sp, sp, #32 //allocate stack frame
+    stur fp, [sp, #0] // save old frame pointer
+    addi fp, sp, #24 //set new frame pointer
+    stur lr, [fp, #-16] //save the return address
+    stur x0, [fp, #0] //save argument x0 (base address of list)
+    stur x1, [fp, #-8] //save argument x1 (size of list)
+
+    //if size > 1, execute rest of red recursion
+    bl RedLoop //a, size //sys automatically updates LR (need to confirm in testing?) -> will come back here after redloop finishes
 
     addi x3, xzr, #2 //have x3 just store value of 2
-
-    subis xzr, x1, #1 //test x1 < 1
-    //b.le endredrecursion //end red recursion if size <=1
-    b.le label1 //if x1 <= 1, go to label1
-    //if size > 1, execute red recursion
-    bl RedLoop //a, size
-
-    //ldur x0, [fp, #0]
-
-ldur x1, [fp, #-24] //load x1 value
-udiv x1, x1, x3 //size = size/2
+    udiv x1, x1, x3 //size = size/2
 
     bl RedRecursion //a, size/2
 
-ldur x0, [fp, #0] //load x0 value
-b done
-
-//draft #1 (ISSUE #2)
-    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
-    //x19 has address of array[updated x1(half list size)]
-    add x0, x0, x19 //updates x0
-//size is already updated???
-    bl RedRecursion //a/2, size/2
-ldur x0, [fp, #0]
-    b done
 
 label1:
-    addi x22, xzr, #1 //return 1 //????
 
-done:
+    ldur x0, [fp, #0] //restore old base list address
+    ldur x1, [fp, #-8] //restore old listsize
     ldur lr, [fp, #-16] //restore return address
     ldur fp, [fp, #-24] //restore old frame pointer
     addi sp, sp, #32 //deallocate stack frame
 
+    lsl x2, x1, #3
+    add x0, x0, x2 //x0 = x0 + a[size] //wouldn't affect x0 value in caller of red recursion right??
+
+//END OF MY INSERTED CODE
+
+//NEED TO ADD CODE HERE
+
     br lr //return to caller
 
 
-//(ISSUE #1: following code never gets called)
 //debug
 //addi x20, xzr, #9
 //putint x20
-
-
-
-    //keep value of x0 (a)
-    //udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
-    //b.gt RedRecursion //run for first half of list //correctly recursively calls RedRecursion
 
     //debug
     //addi x21, xzr, #8
     //putint x21
 
-//draft #1 (ISSUE #2)
-    //lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
-    //x19 has address of array[updated x1(half list size)]
-    //add x0, x0, x19 //updates x0
-
-//following code is never called bc br lr just goes back to main instead of functioncall+4
-//debug
-//addi x21, xzr, #8
-//putint x21
-
-//draft #2 (ISSUE #2)
-    //or is it just this:
-    //add x0, x0, x1 // x0 = x0 + half list size //updates x0
-
-    //keep value of updated x1 (half of size)
-    //b.gt RedRecursion //run for second half of list
-
 //endredrecursion:
-	//END OF MY INSERTED CODE
 	//br lr
 
 
@@ -259,7 +228,7 @@ smolblueloop:
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current element (x5) with element at size - i - 1 (x10)
-	b.lt repeatbluesmol //if earlier elem < later elem, go to repeatbluesmol
+	b.le repeatbluesmol //if earlier elem <= later elem, go to repeatbluesmol
 
     //execute following if need to swap elements
     add x11, x5, xzr //save earlier (bigger) value into temp register
@@ -309,16 +278,12 @@ BLueRecursion:
     udiv x1, x1, x3 // x1 = half of listsize
     b.gt BLueRecursion
 
-//draft #1 or draft #2 updates x0
+//draft #1 updates x0
 
 //draft #1 (ISSUE #2)
     lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
     //x19 has address of array[updated x1(half list size)]
     add x0, x0, x19 //updates x0
-
-//draft #2 (ISSUE #2)
-    //or is it just this:
-    //add x0, x0, x1 // x0 = x0 + half list size //updates x0
 
     //keep x1
     b.gt BLueRecursion
@@ -329,16 +294,16 @@ BLueRecursion:
 
 //(ISSUE #1: following code never gets called)
 //debug
-addi x20, xzr, #9
-putint x20
+//addi x20, xzr, #9
+//putint x20
 
     //keep value of x0 (a)
     udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
     b.gt RedRecursion //run for first half of list (should be bl RedRecursion) //correctly recursively calls RedRecursion
 
-    //debug
-    addi x21, xzr, #8
-    putint x21
+//debug
+//addi x21, xzr, #8
+//putint x21
 
 //draft #1 (ISSUE #2)
     lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
@@ -347,12 +312,8 @@ putint x20
 
 //following code is never called
 //debug
-addi x21, xzr, #8
-putint x21
-
-//draft #2 (ISSUE #2)
-    //or is it just this:
-    //add x0, x0, x1 // x0 = x0 + half list size //updates x0
+//addi x21, xzr, #8
+//putint x21
 
     //keep value of updated x1 (half of size)
     b.gt RedRecursion //run for second half of list (should be bl RedRecursion)
