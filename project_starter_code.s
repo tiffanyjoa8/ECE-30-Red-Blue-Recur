@@ -149,10 +149,12 @@ RedRecursion: //still broken :(
     addi x3, xzr, #2 //have x3 just store value of 2
     udiv x1, x1, x3 //size = size/2
 
-    bl RedRecursion //a, size/2
+    bl RedRecursion //a, size/2 //RECURSIVE CALL
 
 
 label1:
+
+//mov x24, x0
 
     ldur x0, [fp, #0] //restore old base list address
     ldur x1, [fp, #-8] //restore old listsize
@@ -164,19 +166,10 @@ label1:
     add x0, x0, x2 //x0 = x0 + a[size] //wouldn't affect x0 value in caller of red recursion right??
 
 //END OF MY INSERTED CODE
-
-//NEED TO ADD CODE HERE
+//cmp x24, x0
+b RedRecursion
 
     br lr //return to caller
-
-
-//debug
-//addi x20, xzr, #9
-//putint x20
-
-    //debug
-    //addi x21, xzr, #8
-    //putint x21
 
 //endredrecursion:
 	//br lr
