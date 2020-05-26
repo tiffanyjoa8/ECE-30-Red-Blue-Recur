@@ -167,13 +167,64 @@ label1:
 
 //END OF MY INSERTED CODE
 //cmp x24, x0
-b RedRecursion
+//b RedRecursion
 
     br lr //return to caller
 
 //endredrecursion:
 	//br lr
 
+
+TESTREDRECUR:
+
+cmpi x1, #1
+b.le redrecurend
+
+	//whole list
+    bl RedLoop;
+
+    //SAVE OG VALUES FOR X0 AND X1
+
+    mov x24, x0 //save og list address
+    mov x25, x1 //save og listsize
+
+    lsl x26, x25, #3 //mult list size by 8
+    add x27, x26, x24 //x27 = last element address
+
+//ALLOCATE NEW MEMORY HERE #1
+dothis:
+
+    //first half of the list
+    addi x3, xzr, #2
+    udiv x1, x1, x3 //size = size/2
+
+here:
+    cmpi x1, #1
+    b.le redrecurend
+    bl RedLoop
+
+//ALLOCATE NEW MEMORY HERE #2
+
+    //second half of the list
+    lsl x1, x1, #3
+    add x0, x0, x1 //address = a[size/2]
+    bl RedLoop
+
+//IF REACH END OF LIST, RESTORE X0  (?? HOW TO IMPLEMENT)
+if (x28 = x0 + size*8)
+mov x28, x0
+bl dothis
+
+//if not reach end of list (ELSE)
+lsl x1, x1, #3
+add x0, x0, x1 //address = a[size/2]
+bl here
+
+redrecurend:
+//DEALLOCATE MEMORY HERE??
+
+//CHANGE X0 TO ADDRESS = A[SIZE/2]???
+bl lr
 
 ////////////////////////
 //                    //
