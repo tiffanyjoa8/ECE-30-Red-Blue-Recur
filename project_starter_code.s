@@ -25,11 +25,10 @@
     lda x0, array
     lda x1, arraySize
     ldur x1, [x1, #0]
-    //bl BLueRecursion <- THE ONLY THING THAT SHOULD BE CALLED IN FINAL CODE
-    //bl RedLoop
-    //bl RedRecursion
-    //bl BLueLoop
-    bl TESTREDRECUR
+    //bl BLueRecursion <- THE ONLY THING THAT SHOULD BE CALLED IN FINAL CODE //(IN PROGRESS!)
+    //bl RedLoop //(WORKS!)
+    bl RedRecursion //(WORKS!)
+    //bl BLueLoop //(WORKS!)
 
     lda x0, array
     lda x1, arraySize
@@ -42,7 +41,7 @@
     //lda x1, arraySize
 	//ldur x1, [x1, #0]
     //bl printList // prints og list
-
+    
     //lda x0, array
     //lda x1, arraySize
     //ldur x1, [x1, #0]
@@ -80,11 +79,9 @@ smolredloop:
 
     lsl x4, x3, #3 //shift left by 3 bits = mult by 8 // mult x3 (the iterator) by 8 (bc 1 space is 8 bytes) = # of spaces away from base address (aka earlier value's posit)
 	add x4, x0, x4  //x4 = address of array[x3] (earlier value)
-	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5
-
+	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5 
+	
 //for debug
-//addi x16, xzr, #9
-//putint x16 //start of compared numbers (#9)
 //putint x5 //first int compared
 
     //parallel code to have x9 "point" to value that is size/2 away
@@ -95,12 +92,11 @@ smolredloop:
 
 //for debug
 //putint x10 //second int being compared
-//putint x16 //end of compared pair of numbers (#9)
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current (earlier) element (x5) with (later) element half listsize away (x10)
 	b.le repeatredsmol //if earlier <= later, go to repeatredsmol
-
+    
     //execute following if need to swap elements
     add x11, x5, xzr //save earlier (bigger) value into temp register
     mov x5, x10 // early element = later (smaller) element
@@ -121,70 +117,23 @@ endredloop:
 //    RedRecursion    //
 //                    //
 ////////////////////////
-RedRecursion: //still broken :(
+RedRecursion: //YAY THIS WORKS ^___^
     // x0: base address of the (sub)list
     // x1: size of the (sub)list
 
     // INSERT YOUR CODE HERE
 
-//debug
-//putint x0 //print base address
-//putint x1 //print list size
-
-//CHECK recursion condition
-    cmpi x1, #1 //test x1 < 1
-    b.le label1 //if x1 <= 1 (base case), go to label1
-
-    //SETUP (saves fp, return address, x0, x1)
-    //stack frame = (fp->) x0 / x1 / lr / fp (<-sp)
-    subi sp, sp, #32 //allocate stack frame
-    stur fp, [sp, #0] // save old frame pointer
-    addi fp, sp, #24 //set new frame pointer
-    stur lr, [fp, #-16] //save the return address
-    stur x0, [fp, #0] //save argument x0 (base address of list)
-    stur x1, [fp, #-8] //save argument x1 (size of list)
-
-    //if size > 1, execute rest of red recursion
-    bl RedLoop //a, size //sys automatically updates LR (need to confirm in testing?) -> will come back here after redloop finishes
-
-    addi x3, xzr, #2 //have x3 just store value of 2
-    udiv x1, x1, x3 //size = size/2
-
-    bl RedRecursion //a, size/2 //RECURSIVE CALL
-
-
-label1:
-
-    //DEALLOCATE MEMORY
-    ldur x0, [fp, #0] //restore old base list address
-    ldur x1, [fp, #-8] //restore old listsize
-    ldur lr, [fp, #-16] //restore return address
-    ldur fp, [fp, #-24] //restore old frame pointer
-    addi sp, sp, #32 //deallocate stack frame
-
-    lsl x2, x1, #3
-    add x0, x0, x2 //x0 = x0 + a[size] //wouldn't affect x0 value in caller of red recursion right??
-
-//END OF MY INSERTED CODE
-//b RedRecursion
-
-    br lr //return to caller
-
-//endredrecursion:
-	//br lr
-
-
-TESTREDRECUR:
-mov x26,
-b.(somecondition) setup
+    cmp x24, xzr //detect if first time running redrecur (need x24 start out as 0 <- already happens naturally if x24 is unused before(?))
+    b.eq setup
+    b.ne dothis //this line is necessary! (logically bc setup is following line)
 
 setup:
     //SAVE OG VALUES FOR X0 AND X1
-    mov x24, x0 //save og list address
-    mov x25, x1 //save og listsize
+    mov x19, x0 //save og list address
+    mov x20, x1 //save og listsize
 
-    lsl x26, x25, #3 //mult list size by 8
-    add x27, x26, x24 //x27 = last element address
+    lsl x21, x20, #3 //mult list size by 8
+    add x22, x21, x19 //x22 = last element address
 
 //ALLOCATE MEMORY TO STORY OG LR (X30)
 subi sp, sp, #32 //allocate stack frame
@@ -194,19 +143,17 @@ stur lr, [fp, #-16] //save the return address
 stur x0, [fp, #0] //save argument x0 (base address of list)
 stur x1, [fp, #-8] //save argument x1 (size of list)
 
-
     cmpi x1, #1 //check listsize > 1
     b.le redrecurend
 
 	//whole list
     bl RedLoop
 
-//ALLOCATE NEW MEMORY HERE #1
+addi x24, xzr, #1 //update detector (NEED THIS??)
 
-dofirst:
-    mov x0, x24 //restore og address (beginning of list)
+dothis:
+    mov x0, x19 //restore og address (beginning of list)
 
-//dothis:
     //first half of the list
     addi x3, xzr, #2
     udiv x1, x1, x3 //size = size/2
@@ -216,8 +163,6 @@ here:
     b.le redrecurend
     bl RedLoop
 
-//ALLOCATE NEW MEMORY HERE #2
-
     //second half of the list
     lsl x4, x1, #3
     add x0, x0, x4 //address = a[size/2]
@@ -225,9 +170,10 @@ here:
 
     //IF REACH END OF LIST, RESTORE X0
     lsl x4, x1, #3 //restore value of x4
-    add x28, x0, x4 //address = a+a[size/2] //find address of last elem in current sublist
-    cmp x28, x27 //compare actual last element address with last element in current sublist
-    b.eq dofirst //COULD BE THE RECURSIVE CALL?????????
+    add x23, x0, x4 //address = a+a[size/2] //find address of last elem in current sublist
+    cmp x23, x22 //compare actual last element address with last element in current sublist
+    //b.eq dothis //old instruction (without the cmp/b.eq/b.ne/setup label)
+    b.eq RedRecursion //RECURSIVE CALL
 
     //if not reach end of list (ELSE)
     lsl x4, x1, #3
@@ -237,13 +183,15 @@ here:
 redrecurend:
 
 //DEALLOCATE MEMORY
-ldur x0, [fp, #0] //restore old base list address
-ldur x1, [fp, #-8] //restore old listsize
+ldur x0, [fp, #0] //restore og base list address
+ldur x1, [fp, #-8] //restore og listsize
 ldur lr, [fp, #-16] //restore return address
 ldur fp, [fp, #-24] //restore old frame pointer
 addi sp, sp, #32 //deallocate stack frame
 
-    br lr
+mov x24, xzr //restore the detector
+
+    br lr //return to caller
 
 
 ////////////////////////
@@ -275,8 +223,6 @@ smolblueloop:
     ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5
 
 //for debug
-//addi x16, xzr, #9
-//putint x16 //start of compared numbers (#9)
 //putint x5 //first int compared
 
     //parallel code to have x9 "point" to value that is at size - i -1
@@ -288,7 +234,6 @@ smolblueloop:
 
 //for debug
 //putint x10 //second int being compared
-//putint x16 //end of compared pair of numbers (#9)
 
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current element (x5) with element at size - i - 1 (x10)
@@ -308,6 +253,7 @@ repeatbluesmol:
 endblueloop:
     //END OF MY INSERTED CODE
 	br lr 
+
 
 ////////////////////////
 //                    //
@@ -385,6 +331,62 @@ BLueRecursion:
 endbluerecursion:
 	//END OF MY INSERTED CODE
 	br lr
+
+
+
+
+//-----------------------------------------------------------
+//FOR REFERENCE:
+OLDRedRecursion:
+    // x0: base address of the (sub)list
+    // x1: size of the (sub)list
+
+    // INSERT YOUR CODE HERE
+
+//debug
+//putint x0 //print base address
+//putint x1 //print list size
+
+//CHECK recursion condition
+    cmpi x1, #1 //test x1 < 1
+    b.le label1 //if x1 <= 1 (base case), go to label1
+
+    //SETUP (saves fp, return address, x0, x1)
+    //stack frame = (fp->) x0 / x1 / lr / fp (<-sp)
+    subi sp, sp, #32 //allocate stack frame
+    stur fp, [sp, #0] // save old frame pointer
+    addi fp, sp, #24 //set new frame pointer
+    stur lr, [fp, #-16] //save the return address
+    stur x0, [fp, #0] //save argument x0 (base address of list)
+    stur x1, [fp, #-8] //save argument x1 (size of list)
+
+    //if size > 1, execute rest of red recursion
+    bl RedLoop //a, size //sys automatically updates LR (need to confirm in testing?) -> will come back here after redloop finishes
+
+    addi x3, xzr, #2 //have x3 just store value of 2
+    udiv x1, x1, x3 //size = size/2
+
+    bl RedRecursion //a, size/2 //RECURSIVE CALL
+
+label1:
+    //DEALLOCATE MEMORY
+    ldur x0, [fp, #0] //restore old base list address
+    ldur x1, [fp, #-8] //restore old listsize
+    ldur lr, [fp, #-16] //restore return address
+    ldur fp, [fp, #-24] //restore old frame pointer
+    addi sp, sp, #32 //deallocate stack frame
+
+    lsl x2, x1, #3
+    add x0, x0, x2 //x0 = x0 + a[size] //wouldn't affect x0 value in caller of red recursion right??
+
+//END OF MY INSERTED CODE
+//b RedRecursion
+
+    br lr //return to caller
+
+//-----------------------------------------------------------
+//DO NOT TOUCH CODE BELOW
+
 
 
 ////////////////////////
