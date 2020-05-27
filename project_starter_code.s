@@ -27,8 +27,9 @@
     ldur x1, [x1, #0]
     //bl BLueRecursion <- THE ONLY THING THAT SHOULD BE CALLED IN FINAL CODE
     //bl RedLoop
-    bl RedRecursion
+    //bl RedRecursion
     //bl BLueLoop
+    bl TESTREDRECUR
 
     lda x0, array
     lda x1, arraySize
@@ -41,7 +42,7 @@
     //lda x1, arraySize
 	//ldur x1, [x1, #0]
     //bl printList // prints og list
-    
+
     //lda x0, array
     //lda x1, arraySize
     //ldur x1, [x1, #0]
@@ -79,8 +80,8 @@ smolredloop:
 
     lsl x4, x3, #3 //shift left by 3 bits = mult by 8 // mult x3 (the iterator) by 8 (bc 1 space is 8 bytes) = # of spaces away from base address (aka earlier value's posit)
 	add x4, x0, x4  //x4 = address of array[x3] (earlier value)
-	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5 
-	
+	ldur x5, [x4, #0] // x5 = array[x3] (earlier value), load value at x4 into x5
+
 //for debug
 //addi x16, xzr, #9
 //putint x16 //start of compared numbers (#9)
@@ -99,7 +100,7 @@ smolredloop:
     //compare current val with current max+update current max (if needed)
     cmp x5, x10 //compare current (earlier) element (x5) with (later) element half listsize away (x10)
 	b.le repeatredsmol //if earlier <= later, go to repeatredsmol
-    
+
     //execute following if need to swap elements
     add x11, x5, xzr //save earlier (bigger) value into temp register
     mov x5, x10 // early element = later (smaller) element
@@ -154,8 +155,7 @@ RedRecursion: //still broken :(
 
 label1:
 
-//mov x24, x0
-
+    //DEALLOCATE MEMORY
     ldur x0, [fp, #0] //restore old base list address
     ldur x1, [fp, #-8] //restore old listsize
     ldur lr, [fp, #-16] //restore return address
@@ -166,7 +166,6 @@ label1:
     add x0, x0, x2 //x0 = x0 + a[size] //wouldn't affect x0 value in caller of red recursion right??
 
 //END OF MY INSERTED CODE
-//cmp x24, x0
 //b RedRecursion
 
     br lr //return to caller
@@ -176,55 +175,76 @@ label1:
 
 
 TESTREDRECUR:
+mov x26,
+b.(somecondition) setup
 
-cmpi x1, #1
-b.le redrecurend
-
-	//whole list
-    bl RedLoop;
-
+setup:
     //SAVE OG VALUES FOR X0 AND X1
-
     mov x24, x0 //save og list address
     mov x25, x1 //save og listsize
 
     lsl x26, x25, #3 //mult list size by 8
     add x27, x26, x24 //x27 = last element address
 
-//ALLOCATE NEW MEMORY HERE #1
-dothis:
+//ALLOCATE MEMORY TO STORY OG LR (X30)
+subi sp, sp, #32 //allocate stack frame
+stur fp, [sp, #0] // save old frame pointer
+addi fp, sp, #24 //set new frame pointer
+stur lr, [fp, #-16] //save the return address
+stur x0, [fp, #0] //save argument x0 (base address of list)
+stur x1, [fp, #-8] //save argument x1 (size of list)
 
+
+    cmpi x1, #1 //check listsize > 1
+    b.le redrecurend
+
+	//whole list
+    bl RedLoop
+
+//ALLOCATE NEW MEMORY HERE #1
+
+dofirst:
+    mov x0, x24 //restore og address (beginning of list)
+
+//dothis:
     //first half of the list
     addi x3, xzr, #2
     udiv x1, x1, x3 //size = size/2
 
 here:
-    cmpi x1, #1
+    cmpi x1, #1 //check listsize > 1
     b.le redrecurend
     bl RedLoop
 
 //ALLOCATE NEW MEMORY HERE #2
 
     //second half of the list
-    lsl x1, x1, #3
-    add x0, x0, x1 //address = a[size/2]
+    lsl x4, x1, #3
+    add x0, x0, x4 //address = a[size/2]
     bl RedLoop
 
-//IF REACH END OF LIST, RESTORE X0  (?? HOW TO IMPLEMENT)
-if (x28 = x0 + size*8)
-mov x28, x0
-bl dothis
+    //IF REACH END OF LIST, RESTORE X0
+    lsl x4, x1, #3 //restore value of x4
+    add x28, x0, x4 //address = a+a[size/2] //find address of last elem in current sublist
+    cmp x28, x27 //compare actual last element address with last element in current sublist
+    b.eq dofirst //COULD BE THE RECURSIVE CALL?????????
 
-//if not reach end of list (ELSE)
-lsl x1, x1, #3
-add x0, x0, x1 //address = a[size/2]
-bl here
+    //if not reach end of list (ELSE)
+    lsl x4, x1, #3
+    add x0, x0, x4 //address = a[size/2]
+    b here
 
 redrecurend:
-//DEALLOCATE MEMORY HERE??
 
-//CHANGE X0 TO ADDRESS = A[SIZE/2]???
-bl lr
+//DEALLOCATE MEMORY
+ldur x0, [fp, #0] //restore old base list address
+ldur x1, [fp, #-8] //restore old listsize
+ldur lr, [fp, #-16] //restore return address
+ldur fp, [fp, #-24] //restore old frame pointer
+addi sp, sp, #32 //deallocate stack frame
+
+    br lr
+
 
 ////////////////////////
 //                    //
