@@ -53,6 +53,7 @@
     //bl printList // prints sorted list
 	//stop
 
+
 ////////////////////////
 //                    //
 //      RedLoop       //
@@ -104,6 +105,7 @@ endredloop:
     //END OF MY INSERTED CODE
 	br lr //was given
 
+
 ////////////////////////
 //                    //
 //    RedRecursion    //
@@ -113,11 +115,11 @@ RedRecursion: //YAY THIS WORKS ^___^ (is tested)
     // x0: base address of the (sub)list
     // x1: size of the (sub)list
 
-    cmp x24, xzr //detect if first time running redrecur (need x24 start out as 0 <- already happens naturally if x24 is unused before(?))
-    b.eq setup
-    b.ne dothis //this line is necessary! (logically bc setup is following line)
+    cmp x24, xzr //detect if first time running redrecur
+    b.eq redsetup
+    b.ne dothis //this line is necessary! (logically bc redsetup is following line)
 
-setup:
+redsetup:
     //SAVE OG VALUES FOR X0 AND X1
     mov x19, x0 //save og list address
     mov x20, x1 //save og listsize (don't actually need bc following line could just be lsl x21, x1, #3 but it's okay)
@@ -125,7 +127,7 @@ setup:
     lsl x21, x20, #3 //mult list size by 8
     add x22, x21, x19 //x22 = last element address
 
-//ALLOCATE MEMORY TO STORY OG LR (X30)
+//ALLOCATE MEMORY TO STORE OG LR (X30)
 subi sp, sp, #32 //allocate stack frame
 stur fp, [sp, #0] // save old frame pointer
 addi fp, sp, #24 //set new frame pointer
@@ -162,7 +164,7 @@ here:
     lsl x4, x1, #3 //restore value of x4
     add x23, x0, x4 //address = a+a[size/2] //find address of last elem in current sublist
     cmp x23, x22 //compare actual last element address with last element in current sublist
-    //b.eq dothis //old instruction (without the cmp/b.eq/b.ne/setup label)
+    //b.eq dothis //old instruction (without the cmp/b.eq/b.ne/redsetup label)
     b.eq RedRecursion //RECURSIVE CALL
 
     //if not reach end of list (ELSE)
@@ -245,80 +247,101 @@ endblueloop:
 	br lr 
 
 
+
+
+
+
+
+
+
+
+
 ////////////////////////
 //                    //
 //    BLueRecursion   //
 //                    //
 ////////////////////////
-BLueRecursion:
+BLueRecursion: //CAN'T USE X24! (from redrecur) (ONLY USE X25 ONCE)
     // x0: base address of the (sub)list
     // x1: size of the (sub)list
 
-    // INSERT YOUR CODE HERE
-    cmp x1, x23 //initially x23 is
-    b.eq keepblueinitial
+    cmp x25, xzr //detect if first time running redrecur
+    b.eq bluesetup
+    b.ne gohere //this line is necessary! (logically bc redsetup is following line)
 
-    //following wouldn't work bc x0 and x1 would just keep being updated?
-    keepblueinitial:
-        add x24, xzr, x0 //keep copy of og base address
-        add x25, xzr, x1 //keep copy of og size
+bluesetup:
 
-//debug
-//putint x0 //print base address
-//putint x1 //print list size
-//putint x22 //og base address??
-//putint x23 //og list size??
+//ALLOCATE MEMORY (LIKE RED RECUR)
+subi sp, sp, #32 //allocate stack frame
+stur fp, [sp, #0] // save old frame pointer
+addi fp, sp, #24 //set new frame pointer
+stur lr, [fp, #-16] //save the return address
+stur x0, [fp, #0] //save argument x0 (base address of list)
+stur x1, [fp, #-8] //save argument x1 (size of list)
+
+addi x25, xzr, #1 //update detector (NEED THIS??)
+
+gohere:
+
+    addi x2, xzr, #1 //have x2 just store value of 1 (min list size)
+    cmp x1, x2
+    b.le endbluerecursion
+
+//USE LDUR X0/X1 INSTEAD OF THIS ??
+    //add x24, xzr, x0 //keep copy of og base address
+    //add x25, xzr, x1 //keep copy of og size
 
     addi x3, xzr, #2 //have x3 just store value of 2
-    addi x2, xzr, #1 //have x2 just store value of 1 (min list size)
     cmp x1, x2 //compare list size and 1
     b.le endbluerecursion //end red recursion if size <=1
 
     //keep x0
     udiv x1, x1, x3 // x1 = half of listsize
-    b.gt BLueRecursion
+    cmp x1, x2 //compare list size and 1
+    b.le endbluerecursion //end red recursion if size <=1
+    bl BLueRecursion
 
-//draft #1 updates x0
 
-//draft #1 (ISSUE #2)
-    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
+    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)]
     //x19 has address of array[updated x1(half list size)]
     add x0, x0, x19 //updates x0
 
     //keep x1
-    b.gt BLueRecursion
+    bl BLueRecursion
+
+//EVERYTHING BELOW CALLS OUTSIDE (SHOULD ALREADY WORK AS IS ??)
+
+//RESTORE OG ADDRESS AND LISTSIZE
+ldur x0, [fp, #0] //restore og base list address
+ldur x1, [fp, #-8] //restore og listsize
 
     //need to restore original values of x0 and x1??
     mul x1, x1, x3
-    b.gt BlueLoop //(ISSUE #1: after finishing red loop, program just returns to main instead of back here??)
-
-//(ISSUE #1: following code never gets called)
-//debug
-//addi x20, xzr, #9
-//putint x20
+    bl BLueLoop //(ISSUE #1: after finishing red loop, program just returns to main instead of back here??)
 
     //keep value of x0 (a)
     udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
-    b.gt RedRecursion //run for first half of list (should be bl RedRecursion) //correctly recursively calls RedRecursion
+    cmp x1, x2 //compare list size and 1
+    bl RedRecursion //run for first half of list (should be bl RedRecursion) //correctly recursively calls RedRecursion
 
-//debug
-//addi x21, xzr, #8
-//putint x21
-
-//draft #1 (ISSUE #2)
-    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)] //???
+    lsl x19, x1, #3 //x19 address of array[updated x1(half list size)]
     //x19 has address of array[updated x1(half list size)]
     add x0, x0, x19 //updates x0
 
-//following code is never called
-//debug
-//addi x21, xzr, #8
-//putint x21
-
     //keep value of updated x1 (half of size)
-    b.gt RedRecursion //run for second half of list (should be bl RedRecursion)
+    cmp x1, x2 //compare list size and 1
+    bl RedRecursion //run for second half of list (should be bl RedRecursion)
 
 endbluerecursion:
+//DEALLOCATE MEMORY
+ldur x0, [fp, #0] //restore og base list address
+ldur x1, [fp, #-8] //restore og listsize
+ldur lr, [fp, #-16] //restore return address
+ldur fp, [fp, #-24] //restore old frame pointer
+addi sp, sp, #32 //deallocate stack frame
+
+mov x25, xzr //restore the detector
+
 	//END OF MY INSERTED CODE
 	br lr
 
