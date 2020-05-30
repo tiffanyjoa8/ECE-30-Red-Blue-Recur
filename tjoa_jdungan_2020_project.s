@@ -29,7 +29,8 @@
     //bl RedLoop //(WORKS!)
     //bl RedRecursion //(WORKS!)
     //bl BLueLoop //(WORKS!)
-    bl ATTEMPTBLUERECUR
+    //bl ATTEMPTBLUERECUR
+    bl DEBUGBLUERECUR
 
     lda x0, array
     lda x1, arraySize
@@ -257,70 +258,103 @@ endblueloop:
 //    BLueRecursion   //
 //                    //
 ////////////////////////
-BLueRecursion: //CAN'T USE X19! (from redrecur) (ONLY USE X25 ONCE) (x21 to x23 are free)
+BLueRecursion: //CAN'T USE X19! (from redrecur) (ONLY USE X25 ONCE)
+    // x0: base address of the (sub)list
+    // x1: size of the (sub)list
+
+br lr
+
+
+
+DEBUGBLUERECUR:
     // x0: base address of the (sub)list
     // x1: size of the (sub)list
 
     cmp x25, xzr //detect if first time running redrecur
-    b.eq bluesetup
-    b.ne gohere //this line is necessary! (logically bc redsetup is following line)
+    b.eq debugthebluesetup
+    b.ne debugyoucando //this line is necessary! (logically bc redsetup is following line)
 
-bluesetup:
+debugthebluesetup: //only run once (TOTAL)!!!
+    subi x2, x1, #1
+    lsl x11, x2, #3 //mult list size by 8
+    add x21, x11, x0 //x21 = last element address
 
+    addi x3, xzr, #2
+
+    udiv x5, x1, x3
+    subi x5, x5, #1
+    lsl x7, x5, #3
+    add x24, x0, x7 //x24 = actual middle address
+    add x22, xzr, x1 //x22 = keep copy of og size
+
+    addi x25, xzr, #1
+
+debugyoucando:
 //ALLOCATE MEMORY (LIKE RED RECUR)
 subi sp, sp, #32 //allocate stack frame
 stur fp, [sp, #0] // save old frame pointer
 addi fp, sp, #24 //set new frame pointer
 stur lr, [fp, #-16] //save the return address
-stur x0, [fp, #0] //save argument x0 (base address of list)
-stur x1, [fp, #-8] //save argument x1 (size of list)
+stur x0, [fp, #0] //save argument x0 (base address of og list)
+stur x1, [fp, #-8] //save argument x1 (size of og list)
 
-//would not work bc every bluerecur recursive call would just update x19 and x20!!!!
-    //add x19, xzr, x0 //keep copy of og base address
-    //add x20, xzr, x1 //keep copy of og size
+cmpi x1, #2
+b.le debuglabel1
 
-addi x25, xzr, #1 //update detector (NEED THIS??)
+addi x3, xzr, #2 //have x3 just store value of 2
 
-gohere:
-    addi x2, xzr, #1 //have x2 just store value of 1 (min list size)
-    cmp x1, x2 //compare list size and 1
-    b.le endbluerecursion //end red recursion if size <=1
+udiv x1, x1, x3
+bl DEBUGBLUERECUR // <--- PC
 
-    addi x3, xzr, #2 //have x3 just store value of 2
+//debugcomeback: // <--- PC+4 (X30)
 
-    //keep x0
-    udiv x1, x1, x3 // x1 = half of listsize
-    cmp x1, x2 //compare list size and 1
-    b.le endbluerecursion //end red recursion if size <=1
-    bl BLueRecursion
+//bl BLueLoop
 
-    lsl x4, x1, #3 //x4 address of array[updated x1(half list size)]
-    add x0, x0, x4 //updates x0
-    //keep x1
-    bl BLueRecursion
+//addi x3, xzr, #2 //have x3 just store value of 2
+//mov x23, x1 //save listsize for this section
+//mov x26, x0 //save head address for this section
+//keep value of x0 (a)
+//udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
+//bl RedRecursion
 
-//EVERYTHING BELOW CALLS OUTSIDE (SHOULD ALREADY WORK AS IS ??)
+//keep x1 (listsize)
+//lsl x4, x1, #3 //x4 address of array[updated x1(half list size)]
+//add x0, x0, x4 //updates x0
+//bl RedRecursion
 
-//RESTORE OG ADDRESS AND LISTSIZE
-ldur x0, [fp, #0] //restore og base list address
-ldur x1, [fp, #-8] //restore og listsize
+//cmp x0, x21 //compare last sublist elem and actual end
+//b.eq debugdonehere //if reach end of list (actual end)
 
-    //need to restore original values of x0 and x1??
-    mul x1, x1, x3
-    bl BLueLoop
+//cmp x0, x24 //compare last sublist elem and actual middle
+//b.eq debugdonehere //if reach middle (actual middle)
 
-    //keep value of x0 (a)
-    udiv x1, x1, x3 // x1 <- x1/ 2 (store half list size in x1) //updates x1
-    bl RedRecursion //run for first half of list
+//lsl x6, x23, #3
+//add x0, x26, x6 //move ptr to next list section
+//mov x1, x23 //restore section listsize
+//b debugcomeback
 
-    lsl x4, x1, #3 //x4 address of array[updated x1(half list size)]
-    add x0, x0, x4 //updates x0
+debuglabel1:
+//EDITED
+addi x3, xzr, #2
+udiv x10, x22, x3 //x1 = half og listsize
+subi x9, x10, #1
+lsl x4, x9, #3
+add x9, x0, x4 //x9 = a[listsize/2]
 
-    //keep value of updated x1 (half of size)
-    //cmp x1, x2 //compare list size and 1
-    bl RedRecursion //run for second half of list
+//make sure is comparing right "last" value
+//make sure is still changing x0 ptr to correct place (1st elem of second half of list)
 
-endbluerecursion:
+cmp x9, x21 //compare ptr and address of last elem
+b.eq debugdonehere //if equal
+
+//AS IS
+udiv x1, x22, x3 //x1 = half og listsize //CORRECT (KEEP)
+lsl x4, x1, #3
+add x0, x0, x4 //x4 = a[listsize/2] //move ptr to beginning of next list section //CORRECT (KEEP)
+
+b DEBUGBLUERECUR //if haven't reached end of list, go back and allocate values for second half
+
+debugdonehere:
 //DEALLOCATE MEMORY
 ldur x0, [fp, #0] //restore og base list address
 ldur x1, [fp, #-8] //restore og listsize
@@ -330,14 +364,23 @@ addi sp, sp, #32 //deallocate stack frame
 
 mov x25, xzr //restore the detector
 
-	//END OF MY INSERTED CODE
-	br lr
+br lr
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+//DO NOT TOUCH BELOW!!!
 
 
 ATTEMPTBLUERECUR: //CAN'T USE X19 (from redrecur) //CAN'T USE X20 (saves sublist size here)
@@ -359,7 +402,6 @@ thebluesetup: //only run once (TOTAL)!!!
     lsl x7, x5, #3
     add x24, x0, x7 //x24 = actual middle address
 
-    add x20, xzr, x0 //keep copy of og base address
     add x22, xzr, x1 //keep copy of og size
 
     addi x25, xzr, #1
@@ -403,19 +445,47 @@ cmp x0, x24 //compare last sublist elem and actual middle
 b.eq donehere //if reach middle (actual middle)
 
 lsl x6, x23, #3
-add x0, x23, x6
-mov x1, x23
+add x0, x26, x6 //move ptr to next list section
+mov x1, x23 //restore section listsize
 b comeback
 
 
 label1:
-udiv x1, x22, x3 //x1 = half og listsize
-lsl x4, x1, #3
-add x0, x0, x4 //x4 = a[listsize/2]
+//udiv x1, x22, x3 //x1 = half og listsize
+//lsl x4, x1, #3
+//add x0, x0, x4 //x4 = a[listsize/2]
 
-cmp x0, x21 //compare ptr and address of last elem
-b.ne ATTEMPTBLUERECUR //if haven't reached end of list, go back and allocate values for second half
-b donehere //if equal
+//cmp x0, x21 //compare ptr and address of last elem
+//b.ne ATTEMPTBLUERECUR //if haven't reached end of list, go back and allocate values for second half
+//b donehere //if equal
+
+//NEW CODE BELOW!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//EDITED
+udiv x10, x22, x3 //x1 = half og listsize
+subi x9, x10, #1
+lsl x4, x9, #3
+add x9, x0, x4 //x9 = a[listsize/2]
+
+//make sure is comparing right "last" value
+//make sure is still changing x0 ptr to correct place (1st elem of second half of list)
+
+cmp x9, x21 //compare ptr and address of last elem
+b.eq donehere //if equal
+
+//AS IS
+udiv x1, x22, x3 //x1 = half og listsize //CORRECT (KEEP)
+lsl x4, x1, #3
+add x0, x0, x4 //x4 = a[listsize/2] //move ptr to beginning of next list section //CORRECT (KEEP)
+
+b ATTEMPTBLUERECUR //if haven't reached end of list, go back and allocate values for second half
+
+
+//NEW CODE ABOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+
 
 donehere:
 //DEALLOCATE MEMORY
